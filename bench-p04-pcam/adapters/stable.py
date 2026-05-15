@@ -22,6 +22,10 @@ class Engine(Adapter):
         self.geometry_mode = "global_slow_spectral"
 
         self.precomputed_patterns = []
+        
+        # Final sparsity refinement parameters
+        self.k_sparse = 8
+        self.suppression_floor = 0.20
         from pcam_model import PCAMModel
         self.model = PCAMModel(
             stored_patterns,
@@ -130,12 +134,11 @@ class Engine(Adapter):
         pi_fisher /= (np.mean(pi_fisher) + 1e-10)
         
         # Top-K Fisher Sparsification: concentrate steering on decisive coordinates
-        k_sparse = 8
-        topk_indices = np.argsort(pi_fisher)[-k_sparse:]
+        topk_indices = np.argsort(pi_fisher)[-self.k_sparse:]
         mask = np.zeros(self.N)
         mask[topk_indices] = 1.0
         
-        pi_sparse = 0.25 + 0.75 * mask * pi_fisher
+        pi_sparse = self.suppression_floor + (1.0 - self.suppression_floor) * mask * pi_fisher
         pi_sparse /= (pi_sparse.mean() + 1e-10)
         pi_fisher = pi_sparse
         
